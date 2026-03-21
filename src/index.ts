@@ -6,3 +6,8 @@ export * from './wallet.js';
 export * from './cache.js';
 export * from './session.js';
 export * from './quality.js';
+export * from './transport.js';
+export * from './signer.js';
+export * from './balance.js';
+export * from './client.js';
+export * from './openai_compat.js';
