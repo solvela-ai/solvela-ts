@@ -1,26 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { RustyClawClient } from '../../src/client.js';
+import { SolvelaClient } from '../../src/client.js';
 import { Wallet } from '../../src/wallet.js';
 
-describe('RustyClawClient', () => {
+describe('SolvelaClient', () => {
   it('creates without wallet', () => {
-    const client = new RustyClawClient();
+    const client = new SolvelaClient();
     expect(client).toBeDefined();
   });
 
   it('creates with wallet', () => {
     const [wallet] = Wallet.create();
-    const client = new RustyClawClient({ wallet });
+    const client = new SolvelaClient({ wallet });
     expect(client).toBeDefined();
   });
 
   it('lastKnownBalance is undefined initially', () => {
-    const client = new RustyClawClient();
+    const client = new SolvelaClient();
     expect(client.lastKnownBalance()).toBeUndefined();
   });
 
   it('creates with custom config', () => {
-    const client = new RustyClawClient({
+    const client = new SolvelaClient({
       config: {
         gatewayUrl: 'https://custom.example.com',
         timeout: 60,
@@ -32,9 +32,9 @@ describe('RustyClawClient', () => {
 
   it('toString redacts sensitive info', () => {
     const [wallet] = Wallet.create();
-    const client = new RustyClawClient({ wallet });
+    const client = new SolvelaClient({ wallet });
     const str = client.toString();
-    expect(str).toContain('RustyClawClient');
+    expect(str).toContain('SolvelaClient');
     expect(str).not.toContain(wallet.toKeypairB58());
   });
 });

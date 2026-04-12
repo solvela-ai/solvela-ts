@@ -1,7 +1,7 @@
 {
-  "name": "@rustyclaw/sdk",
+  "name": "@solvela/sdk",
   "version": "0.1.0",
-  "description": "TypeScript SDK for RustyClawRouter — Solana-native AI agent payment gateway",
+  "description": "TypeScript SDK for Solvela — Solana-native AI agent payment gateway",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

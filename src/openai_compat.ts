@@ -1,4 +1,4 @@
-import { RustyClawClient } from './client.js';
+import { SolvelaClient } from './client.js';
 import { ChatChunk, ChatMessage, ChatRequest, ChatResponse, Role } from './types.js';
 
 interface CreateParams {
@@ -19,7 +19,7 @@ export class OpenAICompat {
     };
   };
 
-  constructor(client: RustyClawClient) {
+  constructor(client: SolvelaClient) {
     this.chat = {
       completions: {
         create: async (

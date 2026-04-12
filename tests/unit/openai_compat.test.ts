@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { OpenAICompat } from '../../src/openai_compat.js';
-import { RustyClawClient } from '../../src/client.js';
+import { SolvelaClient } from '../../src/client.js';
 
 describe('OpenAICompat', () => {
   const originalFetch = globalThis.fetch;
@@ -10,7 +10,7 @@ describe('OpenAICompat', () => {
   });
 
   it('has chat.completions.create method', () => {
-    const client = new RustyClawClient();
+    const client = new SolvelaClient();
     const compat = new OpenAICompat(client);
     expect(typeof compat.chat.completions.create).toBe('function');
   });
@@ -33,7 +33,7 @@ describe('OpenAICompat', () => {
       statusText: 'OK',
     }) as unknown as typeof fetch;
 
-    const client = new RustyClawClient();
+    const client = new SolvelaClient();
     const compat = new OpenAICompat(client);
     const result = await compat.chat.completions.create({
       model: 'gpt-4',

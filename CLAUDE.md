@@ -23,7 +23,7 @@ Vitest uses `globals: true` — no imports needed for `describe`/`it`/`expect`.
 
 ## Architecture
 
-TypeScript client SDK for RustyClawRouter, the Solana-native AI agent payment gateway. Agents pay for LLM API calls with USDC-SPL via the x402 protocol.
+TypeScript client SDK for SolvelaRouter, the Solana-native AI agent payment gateway. Agents pay for LLM API calls with USDC-SPL via the x402 protocol.
 
 ```
 src/
@@ -38,7 +38,7 @@ src/
   session.ts        # SessionStore — session derivation from message hashes, TTL tracking
   quality.ts        # Heuristic quality checks for degraded LLM responses
   balance.ts        # BalanceMonitor — polling with low-balance callback
-  client.ts         # RustyClawClient — orchestrates: balance guard → session → cache → transport → quality → retry
+  client.ts         # SolvelaClient — orchestrates: balance guard → session → cache → transport → quality → retry
   openai_compat.ts  # OpenAICompat — drop-in openai.chat.completions.create() wrapper
   index.ts          # Barrel exports
 ```

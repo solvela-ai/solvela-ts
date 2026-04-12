@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RustyClawClient } from '../../src/client.js';
+import { SolvelaClient } from '../../src/client.js';
 import { ChatRequest, ChatMessage } from '../../src/types.js';
 
 const LIVE = process.env.RUSTYCLAW_LIVE_TESTS === '1';
@@ -13,13 +13,13 @@ describe.skipIf(!LIVE)('Live gateway tests', () => {
   });
 
   it('models endpoint returns data', async () => {
-    const client = new RustyClawClient({ config: { gatewayUrl } });
+    const client = new SolvelaClient({ config: { gatewayUrl } });
     const models = await client.models();
     expect(models.length).toBeGreaterThan(0);
   });
 
   it('chat without payment returns 402 or succeeds with free model', async () => {
-    const client = new RustyClawClient({
+    const client = new SolvelaClient({
       config: { gatewayUrl, freeFallbackModel: 'deepseek-chat' },
     });
     const request = new ChatRequest('gpt-4', [

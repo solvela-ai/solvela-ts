@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { RustyClawClient } from '../../src/client.js';
+import { SolvelaClient } from '../../src/client.js';
 import { ChatRequest, ChatMessage, PaymentRequired } from '../../src/types.js';
 import { PaymentRequiredError } from '../../src/errors.js';
 
-describe('RustyClawClient integration (mocked fetch)', () => {
+describe('SolvelaClient integration (mocked fetch)', () => {
   const originalFetch = globalThis.fetch;
 
   afterEach(() => {
@@ -54,7 +54,7 @@ describe('RustyClawClient integration (mocked fetch)', () => {
   it('chat returns response on success', async () => {
     mockFetch(200, successResponseBody);
 
-    const client = new RustyClawClient();
+    const client = new SolvelaClient();
     const request = new ChatRequest('gpt-4', [new ChatMessage('user', 'Hello')]);
     const resp = await client.chat(request);
     expect(resp.choices[0].message.content).toBe('Hello!');
@@ -63,7 +63,7 @@ describe('RustyClawClient integration (mocked fetch)', () => {
   it('chat uses cache on duplicate request', async () => {
     const fetchFn = mockFetch(200, successResponseBody);
 
-    const client = new RustyClawClient({ config: { enableCache: true } });
+    const client = new SolvelaClient({ config: { enableCache: true } });
     const request = new ChatRequest('gpt-4', [new ChatMessage('user', 'Hello')]);
 
     await client.chat(request);
@@ -76,7 +76,7 @@ describe('RustyClawClient integration (mocked fetch)', () => {
   it('chat throws PaymentRequiredError on 402 without signer', async () => {
     mockFetch(402, prBody);
 
-    const client = new RustyClawClient();
+    const client = new SolvelaClient();
     const request = new ChatRequest('gpt-4', [new ChatMessage('user', 'Hello')]);
     await expect(client.chat(request)).rejects.toThrow(PaymentRequiredError);
   });
@@ -103,7 +103,7 @@ describe('RustyClawClient integration (mocked fetch)', () => {
       };
     }) as unknown as typeof fetch;
 
-    const client = new RustyClawClient({
+    const client = new SolvelaClient({
       config: { enableQualityCheck: true, maxQualityRetries: 1 },
     });
     const request = new ChatRequest('gpt-4', [new ChatMessage('user', 'Hello')]);
@@ -133,7 +133,7 @@ describe('RustyClawClient integration (mocked fetch)', () => {
       };
     }) as unknown as typeof fetch;
 
-    const client = new RustyClawClient({
+    const client = new SolvelaClient({
       config: { freeFallbackModel: 'free-model' },
     });
     const request = new ChatRequest('gpt-4', [new ChatMessage('user', 'Hello')]);

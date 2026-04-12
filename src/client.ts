@@ -23,7 +23,7 @@ import {
 } from './errors.js';
 import { SOLANA_NETWORK } from './constants.js';
 
-export class RustyClawClient {
+export class SolvelaClient {
   private readonly config: ClientConfig;
   private readonly wallet?: Wallet;
   private readonly signer?: Signer;
@@ -180,7 +180,7 @@ export class RustyClawClient {
 
   toString(): string {
     const wallet = this.wallet ? `wallet=${this.wallet.address()}` : 'no-wallet';
-    return `RustyClawClient(gateway=${this.config.gatewayUrl}, ${wallet}, secret=REDACTED)`;
+    return `SolvelaClient(gateway=${this.config.gatewayUrl}, ${wallet}, secret=REDACTED)`;
   }
 
   private async sendWithPayment(request: ChatRequest): Promise<ChatResponse> {

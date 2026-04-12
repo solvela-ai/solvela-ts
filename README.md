@@ -1,13 +1,13 @@
-# @rustyclaw/sdk
+# @solvela/sdk
 
-TypeScript SDK for RustyClawRouter — Solana-native AI agent payment gateway.
+TypeScript SDK for Solvela — Solana-native AI agent payment gateway.
 
 AI agents pay for LLM API calls with USDC-SPL on Solana via the x402 protocol.
 
 ## Install
 
 ```bash
-npm install @rustyclaw/sdk
+npm install @solvela/sdk
 ```
 
 Requires Node.js 18+.
@@ -15,9 +15,9 @@ Requires Node.js 18+.
 ## Quick Start
 
 ```typescript
-import { RustyClawClient, ChatRequest, ChatMessage } from '@rustyclaw/sdk';
+import { SolvelaClient, ChatRequest, ChatMessage } from '@solvela/sdk';
 
-const client = new RustyClawClient({
+const client = new SolvelaClient({
   config: { gatewayUrl: 'http://localhost:8402' },
 });
 
@@ -32,12 +32,12 @@ console.log(response.choices[0].message.content);
 ## With Wallet (Paid Requests)
 
 ```typescript
-import { RustyClawClient, Wallet, KeypairSigner, ChatRequest, ChatMessage } from '@rustyclaw/sdk';
+import { SolvelaClient, Wallet, KeypairSigner, ChatRequest, ChatMessage } from '@solvela/sdk';
 
 const wallet = Wallet.fromEnv('SOLANA_PRIVATE_KEY');
 const signer = new KeypairSigner(wallet);
 
-const client = new RustyClawClient({
+const client = new SolvelaClient({
   wallet,
   signer,
   config: { gatewayUrl: 'https://gateway.rustyclaw.com' },
@@ -53,9 +53,9 @@ const response = await client.chat(
 ## OpenAI-Compatible Interface
 
 ```typescript
-import { RustyClawClient, OpenAICompat } from '@rustyclaw/sdk';
+import { SolvelaClient, OpenAICompat } from '@solvela/sdk';
 
-const client = new RustyClawClient();
+const client = new SolvelaClient();
 const openai = new OpenAICompat(client);
 
 const response = await openai.chat.completions.create({
@@ -80,7 +80,7 @@ for await (const chunk of client.chatStream(request)) {
 ## Configuration
 
 ```typescript
-const client = new RustyClawClient({
+const client = new SolvelaClient({
   config: {
     gatewayUrl: 'http://localhost:8402',
     rpcUrl: 'https://api.mainnet-beta.solana.com',
