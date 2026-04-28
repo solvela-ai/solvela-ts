@@ -16,6 +16,7 @@ import {
   Resource,
 } from './types.js';
 import {
+  ClientError,
   PaymentRequiredError,
   RecipientMismatchError,
   AmountExceedsMaxError,
@@ -181,7 +182,7 @@ export class SolvelaClient {
     ]);
     const result = await this.transport.sendChat(dummyRequest);
     if (result instanceof PaymentRequired) return result;
-    throw new Error('Expected 402 for cost estimate but got success');
+    throw new ClientError('Expected 402 for cost estimate but got success');
   }
 
   lastKnownBalance(): number | undefined {
