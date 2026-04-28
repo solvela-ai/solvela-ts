@@ -9,6 +9,7 @@ export class BalanceMonitor {
     private readonly pollInterval: number = 30,
     private readonly lowBalanceThreshold?: number,
     private readonly onLowBalance?: (balance: number) => void,
+    private readonly onError?: (error: unknown) => void,
   ) {}
 
   start(): void {
@@ -43,8 +44,9 @@ export class BalanceMonitor {
         if (isLow && !this.wasLow) this.onLowBalance(balance);
         this.wasLow = isLow;
       }
-    } catch {
-      /* swallow fetch errors */
+    } catch (e) {
+      /* swallow fetch errors — optionally surface via onError callback */
+      this.onError?.(e);
     }
   }
 }
