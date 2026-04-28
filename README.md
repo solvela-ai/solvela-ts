@@ -40,7 +40,7 @@ const signer = new KeypairSigner(wallet);
 const client = new SolvelaClient({
   wallet,
   signer,
-  config: { gatewayUrl: 'https://gateway.rustyclaw.com' },
+  config: { gatewayUrl: 'https://api.solvela.ai' },
 });
 
 const response = await client.chat(

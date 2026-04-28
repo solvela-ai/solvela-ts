@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { SolvelaClient } from '../../src/client.js';
 import { ChatRequest, ChatMessage } from '../../src/types.js';
 
-const LIVE = process.env.RUSTYCLAW_LIVE_TESTS === '1';
+const LIVE = process.env.SOLVELA_LIVE_TESTS === '1';
 
 describe.skipIf(!LIVE)('Live gateway tests', () => {
-  const gatewayUrl = process.env.RUSTYCLAW_GATEWAY_URL || 'http://localhost:8402';
+  const gatewayUrl = process.env.SOLVELA_GATEWAY_URL || 'http://localhost:8402';
 
   it('health endpoint responds', async () => {
     const resp = await fetch(`${gatewayUrl}/health`);
