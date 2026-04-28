@@ -151,9 +151,19 @@ export class SolvelaClient {
       request.toolChoice,
     );
 
-    yield* this.transport.sendChatStream(effectiveRequest);
+    // Step 3: Send with payment retry (mirrors chat() / sendWithPayment flow)
+    try {
+      yield* this.transport.sendChatStream(effectiveRequest);
+    } catch (e) {
+      if (e instanceof PaymentRequiredError && this.signer) {
+        const signature = await this.signPaymentForRequest(effectiveRequest, e.paymentRequired);
+        yield* this.transport.sendChatStream(effectiveRequest, signature);
+      } else {
+        throw e;
+      }
+    }
 
-    // Step 3: Session update
+    // Step 4: Session update
     if (this.sessionStore && sessionId) {
       const hash = ResponseCache.cacheKey(model, request.messages);
       this.sessionStore.recordRequest(sessionId, hash);
@@ -254,6 +264,36 @@ export class SolvelaClient {
       throw new InsufficientBalanceError(this.lastBalance, amountAtomic);
     }
 
+    const signature = await this.signPaymentForRequest(request, pr);
+    const result = await this.transport.sendChat(request, signature);
+    if (result instanceof PaymentRequired) {
+      throw new PaymentRequiredError(result);
+    }
+    return result;
+  }
+
+  /**
+   * Signs a payment for the given request and PaymentRequired response.
+   * Returns a base64-encoded payment payload string suitable for the
+   * Payment-Signature header, usable by both chat() and chatStream().
+   */
+  private async signPaymentForRequest(
+    _request: ChatRequest,
+    pr: PaymentRequired,
+  ): Promise<string> {
+    const accepted = this.findCompatibleScheme(pr);
+    if (!accepted) {
+      throw new PaymentRequiredError(pr);
+    }
+
+    this.validatePayment(accepted);
+
+    const amountAtomic = parseInt(accepted.maxAmountRequired, 10);
+
+    if (this.lastBalance !== undefined && this.lastBalance < amountAtomic) {
+      throw new InsufficientBalanceError(this.lastBalance, amountAtomic);
+    }
+
     const resource = new Resource(
       accepted.resource,
       accepted.mimeType,
@@ -267,12 +307,7 @@ export class SolvelaClient {
       accepted,
     );
 
-    const signature = Buffer.from(JSON.stringify(payload.toJSON())).toString('base64');
-    const result = await this.transport.sendChat(request, signature);
-    if (result instanceof PaymentRequired) {
-      throw new PaymentRequiredError(result);
-    }
-    return result;
+    return Buffer.from(JSON.stringify(payload.toJSON())).toString('base64');
   }
 
   private findCompatibleScheme(pr: PaymentRequired): PaymentAccept | undefined {
