@@ -23,7 +23,7 @@ Vitest uses `globals: true` — no imports needed for `describe`/`it`/`expect`.
 
 ## Architecture
 
-TypeScript client SDK for SolvelaRouter, the Solana-native AI agent payment gateway. Agents pay for LLM API calls with USDC-SPL via the x402 protocol.
+TypeScript client SDK for Solvela, the Solana-native AI agent payment gateway. Agents pay for LLM API calls with USDC-SPL via the x402 protocol.
 
 ```
 src/
