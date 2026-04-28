@@ -6,14 +6,14 @@ export interface SessionInfo {
   sessionId: string;
   model: string;
   requestCount: number;
-  requestHashes: Set<number>;
+  requestHashes: Set<string>;
   lastAccess: number;
 }
 
 interface InternalSession {
   model: string;
   requestCount: number;
-  requestHashes: Set<number>;
+  requestHashes: Set<string>;
   lastAccess: number;
 }
 
@@ -47,7 +47,7 @@ export class SessionStore {
     };
   }
 
-  recordRequest(sessionId: string, requestHash: number): void {
+  recordRequest(sessionId: string, requestHash: string): void {
     const session = this.sessions.get(sessionId);
     if (session) {
       session.requestCount += 1;

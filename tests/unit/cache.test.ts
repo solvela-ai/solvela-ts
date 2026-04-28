@@ -54,7 +54,7 @@ describe('ResponseCache', () => {
 
   it('get returns undefined for missing key', () => {
     const cache = new ResponseCache();
-    expect(cache.get(999)).toBeUndefined();
+    expect(cache.get('nonexistent-key')).toBeUndefined();
   });
 
   it('entries expire after TTL', () => {

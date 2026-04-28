@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type { ChatMessage, ChatResponse } from './types.js';
 
 interface CacheEntry {
@@ -6,7 +8,7 @@ interface CacheEntry {
 }
 
 export class ResponseCache {
-  private entries = new Map<number, CacheEntry>();
+  private entries = new Map<string, CacheEntry>();
 
   constructor(
     private readonly maxEntries: number = 200,
@@ -14,17 +16,12 @@ export class ResponseCache {
     private readonly dedupWindow: number = 30,
   ) {}
 
-  static cacheKey(model: string, messages: ChatMessage[]): number {
+  static cacheKey(model: string, messages: ChatMessage[]): string {
     const raw = model + '|' + messages.map((m) => `${m.role}:${m.content ?? ''}`).join('|');
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-      const ch = raw.charCodeAt(i);
-      hash = ((hash << 5) - hash + ch) | 0;
-    }
-    return hash;
+    return createHash('sha256').update(raw).digest('hex');
   }
 
-  get(key: number): ChatResponse | undefined {
+  get(key: string): ChatResponse | undefined {
     const entry = this.entries.get(key);
     if (!entry) return undefined;
 
@@ -36,7 +33,7 @@ export class ResponseCache {
     return entry.response;
   }
 
-  put(key: number, response: ChatResponse): void {
+  put(key: string, response: ChatResponse): void {
     const now = Date.now() / 1000;
 
     // Dedup: if key already exists within dedup window, skip

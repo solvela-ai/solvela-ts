@@ -22,7 +22,7 @@ describe('SessionStore', () => {
   it('getOrCreate returns existing session', () => {
     const store = new SessionStore();
     const info1 = store.getOrCreate('s1', 'gpt-4');
-    store.recordRequest('s1', 123);
+    store.recordRequest('s1', 'hash-123');
     const info2 = store.getOrCreate('s1', 'gpt-3.5');
     // Should keep original model, and request count should reflect the record
     expect(info2.model).toBe('gpt-4');
@@ -32,8 +32,8 @@ describe('SessionStore', () => {
   it('recordRequest increments count and tracks hash', () => {
     const store = new SessionStore();
     store.getOrCreate('s1', 'gpt-4');
-    store.recordRequest('s1', 111);
-    store.recordRequest('s1', 222);
+    store.recordRequest('s1', 'hash-111');
+    store.recordRequest('s1', 'hash-222');
     const info = store.getOrCreate('s1', 'gpt-4');
     expect(info.requestCount).toBe(2);
   });

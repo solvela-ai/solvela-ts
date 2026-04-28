@@ -71,7 +71,7 @@ export class SolvelaClient {
     }
 
     // Step 3: Cache check (AFTER model finalization)
-    let cacheKey: number | undefined;
+    let cacheKey: string | undefined;
     if (this.cache) {
       cacheKey = ResponseCache.cacheKey(model, request.messages);
       const cached = this.cache.get(cacheKey);
