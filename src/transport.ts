@@ -69,11 +69,23 @@ export class Transport {
     const body = request.toJSON();
     body.stream = true;
 
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout * 1000);
+
+    let resp: Response;
+    try {
+      resp = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      if ((e as Error).name === 'AbortError') throw new TimeoutError(this.timeout);
+      throw e;
+    }
+    clearTimeout(timeoutId);
 
     if (resp.status === 402) {
       const pr = PaymentRequired.fromJSON(await resp.json());
@@ -84,7 +96,10 @@ export class Transport {
       throw new GatewayError(resp.status, (data.error as string) || resp.statusText);
     }
 
-    const reader = resp.body!.getReader();
+    if (!resp.body) {
+      throw new GatewayError(200, 'Response body is null');
+    }
+    const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
 
@@ -106,11 +121,21 @@ export class Transport {
 
   async fetchModels(): Promise<Record<string, unknown>[]> {
     const url = this.buildUrl('/v1/models');
-    const resp = await fetch(url);
-    if (resp.status !== 200) {
-      throw new GatewayError(resp.status, resp.statusText);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout * 1000);
+    try {
+      const resp = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (resp.status !== 200) {
+        throw new GatewayError(resp.status, resp.statusText);
+      }
+      const data = (await resp.json()) as { data?: Record<string, unknown>[] };
+      return data.data ?? [];
+    } catch (e) {
+      clearTimeout(timeoutId);
+      if (e instanceof GatewayError) throw e;
+      if ((e as Error).name === 'AbortError') throw new TimeoutError(this.timeout);
+      throw e;
     }
-    const data = (await resp.json()) as { data?: Record<string, unknown>[] };
-    return data.data ?? [];
   }
 }
