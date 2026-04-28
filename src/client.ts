@@ -101,7 +101,7 @@ export class SolvelaClient {
         const content = response.choices[0]?.message?.content;
         if (!content || !checkDegraded(content)) break;
         retries++;
-        response = await this.sendWithPayment(effectiveRequest);
+        response = await this.sendWithPayment(effectiveRequest, { 'X-Solvela-Retry-Reason': 'degraded' });
       }
     }
 
@@ -194,13 +194,16 @@ export class SolvelaClient {
     return `SolvelaClient(gateway=${this.config.gatewayUrl}, ${wallet}, secret=REDACTED)`;
   }
 
-  private async sendWithPayment(request: ChatRequest): Promise<ChatResponse> {
-    const result = await this.transport.sendChat(request);
+  private async sendWithPayment(
+    request: ChatRequest,
+    extraHeaders?: Record<string, string>,
+  ): Promise<ChatResponse> {
+    const result = await this.transport.sendChat(request, undefined, extraHeaders);
 
     if (result instanceof PaymentRequired) {
       // Try to sign and pay if we have a signer
       if (this.signer) {
-        return this.handlePaymentRequired(request, result);
+        return this.handlePaymentRequired(request, result, extraHeaders);
       }
 
       // Try free fallback model
@@ -215,7 +218,7 @@ export class SolvelaClient {
           request.tools,
           request.toolChoice,
         );
-        const fallbackResult = await this.transport.sendChat(fallbackRequest);
+        const fallbackResult = await this.transport.sendChat(fallbackRequest, undefined, extraHeaders);
         if (fallbackResult instanceof PaymentRequired) {
           throw new PaymentRequiredError(fallbackResult);
         }
@@ -231,6 +234,7 @@ export class SolvelaClient {
   private async handlePaymentRequired(
     request: ChatRequest,
     pr: PaymentRequired,
+    extraHeaders?: Record<string, string>,
   ): Promise<ChatResponse> {
     const accepted = this.findCompatibleScheme(pr);
     if (!accepted) {
@@ -256,7 +260,7 @@ export class SolvelaClient {
           request.tools,
           request.toolChoice,
         );
-        const fallbackResult = await this.transport.sendChat(fallbackRequest);
+        const fallbackResult = await this.transport.sendChat(fallbackRequest, undefined, extraHeaders);
         if (fallbackResult instanceof PaymentRequired) {
           throw new InsufficientBalanceError(this.lastBalance, amountAtomic);
         }
@@ -266,7 +270,7 @@ export class SolvelaClient {
     }
 
     const signature = await this.signPaymentForRequest(request, pr);
-    const result = await this.transport.sendChat(request, signature);
+    const result = await this.transport.sendChat(request, signature, extraHeaders);
     if (result instanceof PaymentRequired) {
       throw new PaymentRequiredError(result);
     }
