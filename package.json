@@ -18,7 +18,16 @@
     "SECURITY.md"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/solvela-ai/solvela-ts.git"
+  },
+  "homepage": "https://github.com/solvela-ai/solvela-ts#readme",
+  "bugs": {
+    "url": "https://github.com/solvela-ai/solvela-ts/issues"
   },
   "scripts": {
     "build": "tsc",

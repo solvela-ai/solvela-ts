@@ -1,0 +1,76 @@
+name: Release to npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Required permissions:
+# - contents: write -> needed for `gh release create`
+# - id-token: write -> needed for npm provenance attestation (OIDC)
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish @solvela/sdk to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          # registry-url drives the .npmrc that lets `npm publish`
+          # read NODE_AUTH_TOKEN from the env on the publish step.
+
+      - name: Verify tag matches package.json version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match package.json version ($PKG_VERSION)"
+            exit 1
+          fi
+          echo "Publishing version: $PKG_VERSION"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build --if-present
+
+      - name: Publish to npm
+        # --provenance attests the build origin via OIDC (requires id-token: write
+        # and a public repo + public package — both true for solvela-ai/solvela-ts).
+        # --access public is required for scoped packages (@solvela/*) on the free tier.
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Published to npm: https://www.npmjs.com/package/@solvela/sdk/v/${GITHUB_REF_NAME#v}
+
+          Install:
+          \`\`\`
+          npm install @solvela/sdk@${GITHUB_REF_NAME#v}
+          \`\`\`
+
+          Build is attested via npm provenance (sigstore)."
