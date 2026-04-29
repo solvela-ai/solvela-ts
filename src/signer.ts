@@ -41,7 +41,7 @@ export class KeypairSigner implements Signer {
 
       const tx = new Transaction({ recentBlockhash: blockhash, feePayer: sender });
       tx.add(ix);
-      tx.sign(this.wallet.getKeypair());
+      this.wallet.signTransaction(tx);
 
       const txB64 = tx.serialize().toString('base64');
 

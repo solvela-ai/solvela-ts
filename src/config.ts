@@ -13,11 +13,19 @@ export interface ClientConfig {
   freeFallbackModel?: string;
 }
 
+/**
+ * Default cap on a single payment in USDC atomic units.
+ * 10 USDC (10_000_000 atomic with 6 decimals). Acts as a guardrail so the
+ * `maxPaymentAmount` cap is opt-out instead of opt-in.
+ */
+export const DEFAULT_MAX_PAYMENT_AMOUNT = 10_000_000;
+
 export const DEFAULT_CONFIG: ClientConfig = {
-  gatewayUrl: 'http://localhost:8402',
+  gatewayUrl: 'https://api.solvela.ai',
   rpcUrl: 'https://api.mainnet-beta.solana.com',
   preferEscrow: false,
   timeout: 180,
+  maxPaymentAmount: DEFAULT_MAX_PAYMENT_AMOUNT,
   enableCache: false,
   enableSessions: false,
   sessionTtl: 1800,
@@ -25,10 +33,35 @@ export const DEFAULT_CONFIG: ClientConfig = {
   maxQualityRetries: 1,
 };
 
+/**
+ * Reject plaintext `http://` gateway URLs unless the host is a loopback
+ * address. Prevents accidentally pointing the SDK at an unencrypted endpoint
+ * in production (where credentials and signed payment payloads would be
+ * exposed in transit).
+ */
+export function validateGatewayUrl(url: string): void {
+  if (url.startsWith('http://')) {
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error(`Invalid gatewayUrl: ${String(url).slice(0, 200)}`);
+    }
+    // URL.hostname wraps IPv6 in brackets — strip them before comparison.
+    const host = parsed.hostname.replace(/^\[/, '').replace(/\]$/, '');
+    if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1') {
+      throw new Error(
+        'gatewayUrl must use https:// for non-local endpoints (got http://)',
+      );
+    }
+  }
+}
+
 export class ClientBuilder {
   private config: ClientConfig = { ...DEFAULT_CONFIG };
 
   withGatewayUrl(url: string): ClientBuilder {
+    validateGatewayUrl(url);
     return this.with({ gatewayUrl: url });
   }
 

@@ -327,10 +327,11 @@ export class PaymentAccept {
     public readonly mimeType: string,
     public readonly payTo: string,
     public readonly extra: Record<string, unknown> = {},
+    public readonly asset?: string,
   ) {}
 
   toJSON(): Record<string, unknown> {
-    return {
+    return omitUndefined({
       scheme: this.scheme,
       network: this.network,
       max_amount_required: this.maxAmountRequired,
@@ -339,7 +340,8 @@ export class PaymentAccept {
       mime_type: this.mimeType,
       pay_to: this.payTo,
       extra: this.extra,
-    };
+      asset: this.asset,
+    });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -353,6 +355,7 @@ export class PaymentAccept {
       data.mime_type,
       data.pay_to,
       data.extra ?? {},
+      data.asset,
     );
   }
 }
