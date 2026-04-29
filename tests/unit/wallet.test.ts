@@ -60,9 +60,24 @@ describe('Wallet', () => {
     expect(pk.toBase58()).toBe(wallet.address());
   });
 
-  it('getKeypair() returns internal keypair', () => {
+  it('signTransaction() signs a transaction with the wallet keypair', async () => {
+    const { Transaction, SystemProgram, PublicKey } = await import('@solana/web3.js');
     const [wallet] = Wallet.create();
-    const kp = wallet.getKeypair();
-    expect(kp.publicKey.toBase58()).toBe(wallet.address());
+    const tx = new Transaction({
+      recentBlockhash: '11111111111111111111111111111111',
+      feePayer: wallet.publicKey(),
+    });
+    tx.add(
+      SystemProgram.transfer({
+        fromPubkey: wallet.publicKey(),
+        toPubkey: new PublicKey('11111111111111111111111111111111'),
+        lamports: 1,
+      }),
+    );
+    const signed = wallet.signTransaction(tx);
+    expect(signed.signatures.length).toBeGreaterThan(0);
+    expect(signed.signatures[0].signature).not.toBeNull();
+    // Public address is recoverable from signed payload — the secret never leaves the Wallet.
+    expect(signed.feePayer?.toBase58()).toBe(wallet.address());
   });
 });

@@ -1,4 +1,4 @@
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { Keypair, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import * as bip39 from 'bip39';
 import bs58 from 'bs58';
 
@@ -6,6 +6,20 @@ import { WalletError } from './errors.js';
 
 export class Wallet {
   private constructor(private readonly keypair: Keypair) {}
+
+  /**
+   * Sign a Solana transaction (legacy or versioned) with the wallet's keypair.
+   * Prefer this over exposing the underlying Keypair through the public API —
+   * callers should never need a raw secret reference.
+   */
+  signTransaction<T extends Transaction | VersionedTransaction>(tx: T): T {
+    if (tx instanceof VersionedTransaction) {
+      tx.sign([this.keypair]);
+      return tx;
+    }
+    (tx as Transaction).sign(this.keypair);
+    return tx;
+  }
 
   static create(): [Wallet, string] {
     const mnemonic = bip39.generateMnemonic();
@@ -58,16 +72,22 @@ export class Wallet {
     return this.keypair.publicKey;
   }
 
+  /**
+   * @deprecated Returns the raw secret key bytes. Only use for backup/export
+   * to a secure store. Never log or transmit. Prefer `signTransaction` for
+   * signing flows so the secret never leaves the Wallet boundary.
+   */
   toKeypairBytes(): Uint8Array {
     return this.keypair.secretKey;
   }
 
+  /**
+   * @deprecated Returns the raw secret key in base58. Only use for
+   * backup/export to a secure store. Never log or transmit. Prefer
+   * `signTransaction` for signing flows.
+   */
   toKeypairB58(): string {
     return bs58.encode(this.keypair.secretKey);
-  }
-
-  getKeypair(): Keypair {
-    return this.keypair;
   }
 
   toString(): string {

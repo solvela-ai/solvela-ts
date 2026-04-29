@@ -1,9 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { ClientBuilder, DEFAULT_CONFIG } from '../../src/config.js';
+import {
+  ClientBuilder,
+  DEFAULT_CONFIG,
+  DEFAULT_MAX_PAYMENT_AMOUNT,
+  validateGatewayUrl,
+} from '../../src/config.js';
 
 describe('DEFAULT_CONFIG', () => {
   it('has correct defaults', () => {
-    expect(DEFAULT_CONFIG.gatewayUrl).toBe('http://localhost:8402');
+    expect(DEFAULT_CONFIG.gatewayUrl).toBe('https://api.solvela.ai');
     expect(DEFAULT_CONFIG.rpcUrl).toBe('https://api.mainnet-beta.solana.com');
     expect(DEFAULT_CONFIG.preferEscrow).toBe(false);
     expect(DEFAULT_CONFIG.timeout).toBe(180);
@@ -13,16 +18,43 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.enableQualityCheck).toBe(false);
     expect(DEFAULT_CONFIG.maxQualityRetries).toBe(1);
     expect(DEFAULT_CONFIG.expectedRecipient).toBeUndefined();
-    expect(DEFAULT_CONFIG.maxPaymentAmount).toBeUndefined();
+    expect(DEFAULT_CONFIG.maxPaymentAmount).toBe(DEFAULT_MAX_PAYMENT_AMOUNT);
     expect(DEFAULT_CONFIG.freeFallbackModel).toBeUndefined();
+  });
+});
+
+describe('validateGatewayUrl', () => {
+  it('accepts https URLs', () => {
+    expect(() => validateGatewayUrl('https://api.solvela.ai')).not.toThrow();
+  });
+
+  it('accepts http for localhost', () => {
+    expect(() => validateGatewayUrl('http://localhost:8402')).not.toThrow();
+  });
+
+  it('accepts http for 127.0.0.1', () => {
+    expect(() => validateGatewayUrl('http://127.0.0.1:8402')).not.toThrow();
+  });
+
+  it('accepts http for [::1]', () => {
+    expect(() => validateGatewayUrl('http://[::1]:8402')).not.toThrow();
+  });
+
+  it('rejects http for non-loopback hosts', () => {
+    expect(() => validateGatewayUrl('http://example.com')).toThrow();
+    expect(() => validateGatewayUrl('http://api.solvela.ai')).toThrow();
   });
 });
 
 describe('ClientBuilder', () => {
   it('builds with defaults', () => {
     const config = new ClientBuilder().build();
-    expect(config.gatewayUrl).toBe('http://localhost:8402');
+    expect(config.gatewayUrl).toBe('https://api.solvela.ai');
     expect(config.timeout).toBe(180);
+  });
+
+  it('rejects insecure non-local gatewayUrl in builder', () => {
+    expect(() => new ClientBuilder().withGatewayUrl('http://evil.com')).toThrow();
   });
 
   it('supports fluent API', () => {

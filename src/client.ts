@@ -1,4 +1,4 @@
-import { ClientConfig, DEFAULT_CONFIG } from './config.js';
+import { ClientConfig, DEFAULT_CONFIG, validateGatewayUrl } from './config.js';
 import { Transport } from './transport.js';
 import { ResponseCache } from './cache.js';
 import { SessionStore } from './session.js';
@@ -21,8 +21,22 @@ import {
   RecipientMismatchError,
   AmountExceedsMaxError,
   InsufficientBalanceError,
+  SignerError,
 } from './errors.js';
-import { SOLANA_NETWORK } from './constants.js';
+import { SOLANA_NETWORK, USDC_MINT } from './constants.js';
+
+/**
+ * Parse a gateway-supplied atomic-amount string into a positive finite number.
+ * Throws SignerError if the value is not a finite positive integer — this
+ * prevents NaN/Infinity from silently bypassing the maxPaymentAmount cap.
+ */
+function parseAtomicAmount(raw: string): number {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new SignerError(`Invalid payment amount: ${String(raw).slice(0, 32)}`);
+  }
+  return n;
+}
 
 export class SolvelaClient {
   private readonly config: ClientConfig;
@@ -39,6 +53,7 @@ export class SolvelaClient {
     signer?: Signer;
   }) {
     this.config = { ...DEFAULT_CONFIG, ...options?.config };
+    validateGatewayUrl(this.config.gatewayUrl);
     this.wallet = options?.wallet;
     this.signer = options?.signer;
     this.transport = new Transport(this.config.gatewayUrl, this.config.timeout);
@@ -244,7 +259,7 @@ export class SolvelaClient {
     // Validate payment
     this.validatePayment(accepted);
 
-    const amountAtomic = parseInt(accepted.maxAmountRequired, 10);
+    const amountAtomic = parseAtomicAmount(accepted.maxAmountRequired);
 
     // Balance guard
     if (this.lastBalance !== undefined && this.lastBalance < amountAtomic) {
@@ -293,7 +308,7 @@ export class SolvelaClient {
 
     this.validatePayment(accepted);
 
-    const amountAtomic = parseInt(accepted.maxAmountRequired, 10);
+    const amountAtomic = parseAtomicAmount(accepted.maxAmountRequired);
 
     if (this.lastBalance !== undefined && this.lastBalance < amountAtomic) {
       throw new InsufficientBalanceError(this.lastBalance, amountAtomic);
@@ -329,6 +344,20 @@ export class SolvelaClient {
   }
 
   private validatePayment(accepted: PaymentAccept): void {
+    // Network must be Solana mainnet — refuse to sign for any other chain.
+    if (accepted.network !== SOLANA_NETWORK) {
+      throw new ClientError(
+        `Unexpected payment network: ${String(accepted.network).slice(0, 64)}`,
+      );
+    }
+
+    // Asset (when supplied by the gateway) must be USDC mainnet mint.
+    if (accepted.asset !== undefined && accepted.asset !== USDC_MINT) {
+      throw new ClientError(
+        `Unexpected payment asset: ${String(accepted.asset).slice(0, 64)}`,
+      );
+    }
+
     if (
       this.config.expectedRecipient &&
       accepted.payTo !== this.config.expectedRecipient
@@ -336,7 +365,7 @@ export class SolvelaClient {
       throw new RecipientMismatchError(this.config.expectedRecipient, accepted.payTo);
     }
 
-    const amount = parseInt(accepted.maxAmountRequired, 10);
+    const amount = parseAtomicAmount(accepted.maxAmountRequired);
     if (this.config.maxPaymentAmount && amount > this.config.maxPaymentAmount) {
       throw new AmountExceedsMaxError(amount, this.config.maxPaymentAmount);
     }

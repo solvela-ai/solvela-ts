@@ -1,6 +1,16 @@
 import { ChatChunk, ChatRequest, ChatResponse, PaymentRequired } from './types.js';
 import { GatewayError, PaymentRequiredError, TimeoutError } from './errors.js';
 
+/**
+ * Strip control characters and truncate gateway-supplied error strings before
+ * surfacing them through Error messages. Prevents log injection / terminal
+ * escape attacks via attacker-controlled upstream error bodies.
+ */
+function sanitizeErrorMessage(s: string): string {
+  // eslint-disable-next-line no-control-regex
+  return String(s).replace(/[\r\n\x00-\x1f]/g, ' ').slice(0, 200);
+}
+
 export class Transport {
   constructor(
     private readonly baseUrl: string,
@@ -49,7 +59,10 @@ export class Transport {
         return PaymentRequired.fromJSON(await resp.json());
       } else {
         const data = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
-        throw new GatewayError(resp.status, (data.error as string) || resp.statusText);
+        throw new GatewayError(
+          resp.status,
+          sanitizeErrorMessage((data.error as string) || resp.statusText),
+        );
       }
     } catch (e) {
       clearTimeout(timeoutId);
@@ -93,7 +106,10 @@ export class Transport {
     }
     if (resp.status !== 200) {
       const data = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
-      throw new GatewayError(resp.status, (data.error as string) || resp.statusText);
+      throw new GatewayError(
+        resp.status,
+        sanitizeErrorMessage((data.error as string) || resp.statusText),
+      );
     }
 
     if (!resp.body) {
@@ -113,7 +129,22 @@ export class Transport {
         if (line.startsWith('data: ')) {
           const dataStr = line.slice(6).trim();
           if (dataStr === '[DONE]') return;
-          yield ChatChunk.fromJSON(JSON.parse(dataStr));
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(dataStr);
+          } catch (err) {
+            // Malformed SSE chunk from gateway — skip rather than crash the
+            // entire stream. Truncate the offending payload before logging
+            // so an attacker-controlled body cannot pollute logs.
+            // eslint-disable-next-line no-console
+            console.warn(
+              '[solvela] malformed SSE chunk, skipping:',
+              sanitizeErrorMessage(dataStr),
+              (err as Error).message,
+            );
+            continue;
+          }
+          yield ChatChunk.fromJSON(parsed);
         }
       }
     }
