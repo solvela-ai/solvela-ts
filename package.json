@@ -37,7 +37,7 @@
     "test:integration": "vitest run tests/integration",
     "lint": "tsc --noEmit"
   },
-  "engines": { "node": ">=18" },
+  "engines": { "node": ">=20.19" },
   "license": "MIT",
   "dependencies": {
     "@solana/web3.js": "^1.95",
