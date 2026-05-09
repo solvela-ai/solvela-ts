@@ -5,6 +5,7 @@ import { SessionStore } from './session.js';
 import { checkDegraded } from './quality.js';
 import { Wallet } from './wallet.js';
 import type { Signer } from './signer.js';
+import { BalanceMonitor } from './balance.js';
 import {
   ChatChunk,
   ChatRequest,
@@ -45,22 +46,31 @@ export class SolvelaClient {
   private readonly transport: Transport;
   private readonly cache?: ResponseCache;
   private readonly sessionStore?: SessionStore;
-  private lastBalance?: number;
+  private readonly balanceMonitor?: BalanceMonitor;
 
   constructor(options?: {
     config?: Partial<ClientConfig>;
     wallet?: Wallet;
     signer?: Signer;
+    balanceMonitor?: BalanceMonitor;
   }) {
     this.config = { ...DEFAULT_CONFIG, ...options?.config };
     validateGatewayUrl(this.config.gatewayUrl);
     this.wallet = options?.wallet;
     this.signer = options?.signer;
+    this.balanceMonitor = options?.balanceMonitor;
     this.transport = new Transport(this.config.gatewayUrl, this.config.timeout);
     if (this.config.enableCache) this.cache = new ResponseCache();
     if (this.config.enableSessions) {
       this.sessionStore = new SessionStore(this.config.sessionTtl);
     }
+  }
+
+  // Reads the latest balance from the wired BalanceMonitor (if any). Returns
+  // undefined when no monitor is provided OR when it has not polled yet —
+  // the balance-guard call sites all defend against undefined explicitly.
+  private get lastBalance(): number | undefined {
+    return this.balanceMonitor?.lastKnownBalance();
   }
 
   async chat(request: ChatRequest): Promise<ChatResponse> {
@@ -201,7 +211,7 @@ export class SolvelaClient {
   }
 
   lastKnownBalance(): number | undefined {
-    return this.lastBalance;
+    return this.balanceMonitor?.lastKnownBalance();
   }
 
   toString(): string {

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SolvelaClient } from '../../src/client.js';
 import { ChatRequest, ChatMessage, PaymentRequired, PaymentPayload, SolanaPayload } from '../../src/types.js';
-import { PaymentRequiredError } from '../../src/errors.js';
+import { InsufficientBalanceError, PaymentRequiredError } from '../../src/errors.js';
+import { BalanceMonitor } from '../../src/balance.js';
 import type { Signer } from '../../src/signer.js';
 import type { PaymentAccept, Resource } from '../../src/types.js';
 
@@ -112,6 +113,75 @@ describe('SolvelaClient integration (mocked fetch)', () => {
     const resp = await client.chat(request);
     expect(resp.choices[0].message.content).toBe('Hello!');
     expect(callCount).toBe(2);
+  });
+
+  it('chat balance guard swaps to freeFallbackModel when monitor reports zero balance', async () => {
+    // Wires BalanceMonitor → SolvelaClient. Without a polled monitor, Step 1
+    // is skipped (lastBalance returns undefined) and the existing 402 path runs.
+    const fetchFn = vi.fn().mockResolvedValue({
+      status: 200,
+      json: async () => ({ ...successResponseBody, model: 'free-model' }),
+      statusText: 'OK',
+    });
+    globalThis.fetch = fetchFn as unknown as typeof fetch;
+
+    const monitor = new BalanceMonitor(async () => 0);
+    await monitor.pollOnce();
+
+    const client = new SolvelaClient({
+      config: { freeFallbackModel: 'free-model' },
+      balanceMonitor: monitor,
+    });
+    const request = new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')]);
+    const resp = await client.chat(request);
+
+    // Single round-trip — no 402 needed because Step 1 swapped the model
+    // preemptively.
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(resp.model).toBe('free-model');
+
+    const body = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(body.model).toBe('free-model');
+  });
+
+  it('chat balance guard does not fire when monitor has not polled', async () => {
+    const fetchFn = mockFetch(200, successResponseBody);
+    const monitor = new BalanceMonitor(async () => 0);
+    // Intentionally NOT calling pollOnce — lastKnownBalance() is undefined.
+
+    const client = new SolvelaClient({
+      config: { freeFallbackModel: 'free-model' },
+      balanceMonitor: monitor,
+    });
+    await client.chat(new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')]));
+
+    const body = JSON.parse(fetchFn.mock.calls[0][1].body as string);
+    expect(body.model).toBe('gpt-4');
+  });
+
+  it('chat surfaces InsufficientBalanceError when monitor balance < required', async () => {
+    const prBodyHigh = {
+      ...prBody,
+      accepts: [{ ...prBody.accepts[0], max_amount_required: '5000000' }],
+    };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      status: 402,
+      json: async () => prBodyHigh,
+      statusText: 'Payment Required',
+    }) as unknown as typeof fetch;
+
+    const signer: Signer = {
+      async signPayment(_a, _r, _res, accepted: PaymentAccept) {
+        return new PaymentPayload(2, accepted.scheme, accepted.network, new SolanaPayload('tx==', 'sender'));
+      },
+    };
+    const monitor = new BalanceMonitor(async () => 1000);  // 0.001 USDC, far below 5 USDC required
+    await monitor.pollOnce();
+
+    const client = new SolvelaClient({ signer, balanceMonitor: monitor });
+    await expect(
+      client.chat(new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')])),
+    ).rejects.toBeInstanceOf(InsufficientBalanceError);
   });
 
   it('chat falls back to free model on 402 with freeFallbackModel', async () => {
