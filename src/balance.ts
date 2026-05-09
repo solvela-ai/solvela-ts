@@ -45,8 +45,15 @@ export class BalanceMonitor {
         this.wasLow = isLow;
       }
     } catch (e) {
-      /* swallow fetch errors — optionally surface via onError callback */
-      this.onError?.(e);
+      // Surface poll errors. If the caller wired an onError handler we defer
+      // to it; otherwise log a warning so a silent poll failure doesn't leave
+      // `lastKnownBalance()` stuck at undefined and silently disable the
+      // freeFallbackModel guard in SolvelaClient.
+      if (this.onError) {
+        this.onError(e);
+      } else {
+        console.warn('[BalanceMonitor] balance poll failed:', e);
+      }
     }
   }
 }

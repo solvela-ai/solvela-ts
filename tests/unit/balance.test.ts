@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { BalanceMonitor } from '../../src/balance.js';
 
 describe('BalanceMonitor', () => {
@@ -75,13 +75,30 @@ describe('BalanceMonitor', () => {
     monitor.stop(); // should not throw
   });
 
-  it('swallows fetch errors in pollOnce', async () => {
+  it('logs a warning on fetch error when no onError handler is wired', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const fetchBalance = vi.fn().mockRejectedValue(new Error('network'));
     const monitor = new BalanceMonitor(fetchBalance, 30);
 
     // Should not throw
     await monitor.pollOnce();
     expect(monitor.lastKnownBalance()).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0][0]).toContain('[BalanceMonitor]');
+    warnSpy.mockRestore();
+  });
+
+  it('routes fetch errors to onError handler when wired (no warn)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchBalance = vi.fn().mockRejectedValue(new Error('network'));
+    const onError = vi.fn();
+    const monitor = new BalanceMonitor(fetchBalance, 30, undefined, undefined, onError);
+
+    await monitor.pollOnce();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toBeInstanceOf(Error);
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   it('start and stop manage interval', () => {

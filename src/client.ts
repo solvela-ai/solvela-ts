@@ -27,19 +27,22 @@ import {
 import { SOLANA_NETWORK, USDC_MINT } from './constants.js';
 
 /**
- * Parse a gateway-supplied atomic-amount string into a positive safe integer.
- * Throws SignerError if the value is not a strict decimal integer — this
- * prevents NaN/Infinity, fractional truncation ("1.99" → 1), trailing-garbage
- * truncation ("1000abc" → 1000), and >2^53 precision loss from silently
- * bypassing the maxPaymentAmount cap.
+ * Parse a gateway-supplied atomic-amount value into a positive safe integer.
+ * Accepts `unknown` because PaymentAccept.fromJSON is `any`-typed at the wire
+ * boundary — a malformed gateway could deliver a JSON number where a string
+ * is declared, and the typeof guard below is the actual safety net.
+ * Throws SignerError if the value is not a strict decimal-integer string —
+ * this prevents NaN/Infinity, fractional truncation ("1.99" → 1), trailing-
+ * garbage truncation ("1000abc" → 1000), and >2^53 precision loss from
+ * silently bypassing the maxPaymentAmount cap.
  */
-function parseAtomicAmount(raw: string): number {
+function parseAtomicAmount(raw: unknown): number {
   if (typeof raw !== 'string' || !/^\d+$/.test(raw)) {
     throw new SignerError(`Invalid payment amount: ${String(raw).slice(0, 32)}`);
   }
   const n = Number(raw);
   if (!Number.isSafeInteger(n) || n <= 0) {
-    throw new SignerError(`Invalid payment amount: ${String(raw).slice(0, 32)}`);
+    throw new SignerError(`Invalid payment amount: ${raw.slice(0, 32)}`);
   }
   return n;
 }
@@ -73,7 +76,7 @@ export class SolvelaClient {
 
   // Reads the latest balance from the wired BalanceMonitor (if any). Returns
   // undefined when no monitor is provided OR when it has not polled yet —
-  // the balance-guard call sites all defend against undefined explicitly.
+  // the chat/chatStream guard branches defend against undefined before acting.
   private get lastBalance(): number | undefined {
     return this.balanceMonitor?.lastKnownBalance();
   }
@@ -216,7 +219,7 @@ export class SolvelaClient {
   }
 
   lastKnownBalance(): number | undefined {
-    return this.balanceMonitor?.lastKnownBalance();
+    return this.lastBalance;
   }
 
   toString(): string {
@@ -271,10 +274,8 @@ export class SolvelaClient {
       throw new PaymentRequiredError(pr);
     }
 
-    // Validate payment
-    this.validatePayment(accepted);
-
-    const amountAtomic = parseAtomicAmount(accepted.maxAmountRequired);
+    // Validate payment + parse amount once
+    const amountAtomic = this.validatePayment(accepted);
 
     // Balance guard
     if (this.lastBalance !== undefined && this.lastBalance < amountAtomic) {
@@ -321,9 +322,7 @@ export class SolvelaClient {
       throw new PaymentRequiredError(pr);
     }
 
-    this.validatePayment(accepted);
-
-    const amountAtomic = parseAtomicAmount(accepted.maxAmountRequired);
+    const amountAtomic = this.validatePayment(accepted);
 
     if (this.lastBalance !== undefined && this.lastBalance < amountAtomic) {
       throw new InsufficientBalanceError(this.lastBalance, amountAtomic);
@@ -358,7 +357,9 @@ export class SolvelaClient {
     );
   }
 
-  private validatePayment(accepted: PaymentAccept): void {
+  // Validates network/asset/recipient/amount, returns the parsed atomic amount
+  // so callers don't re-parse the string a second time.
+  private validatePayment(accepted: PaymentAccept): number {
     // Network must be Solana mainnet — refuse to sign for any other chain.
     if (accepted.network !== SOLANA_NETWORK) {
       throw new ClientError(
@@ -384,5 +385,6 @@ export class SolvelaClient {
     if (this.config.maxPaymentAmount && amount > this.config.maxPaymentAmount) {
       throw new AmountExceedsMaxError(amount, this.config.maxPaymentAmount);
     }
+    return amount;
   }
 }

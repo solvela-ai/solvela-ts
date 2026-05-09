@@ -173,6 +173,60 @@ describe('Security: parseAtomicAmount NaN guard', () => {
     await expect(client.chat(request)).rejects.toThrow(AmountExceedsMaxError);
     expect(signer.called).toBe(false);
   });
+
+  it('accepts valid atomic amounts (positive-path regression guard)', async () => {
+    // Lock in that the validator still ACCEPTS canonical decimal-integer
+    // strings — guards against a future regex tightening that would silently
+    // reject legitimate values.
+    let call = 0;
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      call++;
+      if (call === 1) {
+        return Promise.resolve({
+          status: 402,
+          json: async () => pr({ amount: '1' }), // 1 atomic unit (smallest valid)
+          body: null,
+          statusText: 'Payment Required',
+        });
+      }
+      return Promise.resolve({
+        status: 200,
+        json: async () => ({
+          id: 'c1',
+          object: 'chat.completion',
+          created: 1,
+          model: 'gpt-4',
+          choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        }),
+        body: null,
+        statusText: 'OK',
+      });
+    }) as unknown as typeof fetch;
+
+    const signer = new StubSigner();
+    const client = new SolvelaClient({ signer });
+    await client.chat(new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')]));
+    expect(signer.called).toBe(true);
+  });
+
+  it('rejects leading +/- sign and surrounding whitespace', async () => {
+    // Regex must reject these even though Number(...) would accept some of
+    // them — these inputs are not canonical wire format and may indicate a
+    // malformed gateway response. (Leading zeros like "01" are intentionally
+    // accepted: they parse unambiguously to the same integer.)
+    const malformedInputs = ['+1', '-0', ' 100 ', '\t100', '100\n'];
+
+    for (const amount of malformedInputs) {
+      mockFetchOnce(402, pr({ amount }));
+      const signer = new StubSigner();
+      const client = new SolvelaClient({ signer });
+      await expect(
+        client.chat(new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')])),
+      ).rejects.toThrow(SignerError);
+      expect(signer.called).toBe(false);
+    }
+  });
 });
 
 describe('Security: network/asset validation before signing', () => {

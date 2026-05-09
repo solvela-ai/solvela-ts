@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SolvelaClient } from '../../src/client.js';
-import { ChatRequest, ChatMessage, PaymentRequired, PaymentPayload, SolanaPayload } from '../../src/types.js';
+import { ChatRequest, ChatMessage, PaymentPayload, SolanaPayload } from '../../src/types.js';
 import { InsufficientBalanceError, PaymentRequiredError } from '../../src/errors.js';
 import { BalanceMonitor } from '../../src/balance.js';
 import type { Signer } from '../../src/signer.js';
@@ -157,6 +157,44 @@ describe('SolvelaClient integration (mocked fetch)', () => {
 
     const body = JSON.parse(fetchFn.mock.calls[0][1].body as string);
     expect(body.model).toBe('gpt-4');
+  });
+
+  it('chat signs payment when balance equals required amount exactly (boundary)', async () => {
+    // Boundary case: balance === amountAtomic. Guard is `<`, so signer must
+    // fire. A regression to `<=` would throw InsufficientBalanceError.
+    let call = 0;
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      call++;
+      if (call === 1) {
+        return Promise.resolve({
+          status: 402,
+          json: async () => prBody, // max_amount_required: '1000000'
+          body: null,
+          statusText: 'Payment Required',
+        });
+      }
+      return Promise.resolve({
+        status: 200,
+        json: async () => successResponseBody,
+        body: null,
+        statusText: 'OK',
+      });
+    }) as unknown as typeof fetch;
+
+    let signerCalled = false;
+    const signer: Signer = {
+      async signPayment(_a, _r, _res, accepted: PaymentAccept) {
+        signerCalled = true;
+        return new PaymentPayload(2, accepted.scheme, accepted.network, new SolanaPayload('tx==', 'sender'));
+      },
+    };
+    const monitor = new BalanceMonitor(async () => 1000000); // exactly equal
+    await monitor.pollOnce();
+
+    const client = new SolvelaClient({ signer, balanceMonitor: monitor });
+    await client.chat(new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')]));
+    expect(signerCalled).toBe(true);
+    expect(call).toBe(2);
   });
 
   it('chat surfaces InsufficientBalanceError when monitor balance < required', async () => {
