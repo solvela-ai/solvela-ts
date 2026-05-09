@@ -74,7 +74,7 @@ On HTTP 402: gateway returns `PaymentRequired` with accepted payment schemes. Cl
 
 - **Commits**: Conventional Commits with scope — `feat(client):`, `fix(cache):`, `cleanup(balance):`, `refactor:`, `chore:`. For breaking wire/cache changes, reference the SHA that introduced the break in the version-bump commit body.
 - **Cross-SDK parity**: this SDK is one of a polyglot family (TS / Rust / Go / Python). Many features ship across all four — check whether a change should be mirrored, and call it out in the commit message when it is.
-- **CI**: GitHub Actions matrix on Node 18/20/22 runs `tsc --noEmit` + unit + integration. Live tests are manual.
+- **CI**: GitHub Actions matrix on Node 20/22 runs `tsc --noEmit` + unit + integration, plus an `npm audit --production --audit-level=high` job. Live tests are manual.
 
 ## Dependencies
 
