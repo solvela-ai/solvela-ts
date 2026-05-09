@@ -61,13 +61,20 @@ On HTTP 402: gateway returns `PaymentRequired` with accepted payment schemes. Cl
 
 - ESM only (`"type": "module"` in package.json, `.js` extensions in imports)
 - Strict TypeScript (`strict: true`, target ES2022, module ESNext)
+- File naming: `snake_case.ts`, one concern per file
 - Classes with static factory methods (`fromJSON`, `fromEnv`) — not plain objects
 - Immutable builder pattern (`ClientBuilder.with()` returns new instance)
 - Wire-format serialization via `toJSON()` / `fromJSON()` on type classes
 - Error handling: typed error classes extending `Error`, never bare throws
 - No `.unwrap()` equivalents — all errors are explicitly typed and caught
 - Amounts are always in atomic USDC units (6 decimals, integer)
-- Tests organized: `tests/unit/`, `tests/integration/`, `tests/live/`
+- Tests organized: `tests/unit/`, `tests/integration/`, `tests/live/` (CI runs unit + integration only)
+
+## Workflow
+
+- **Commits**: Conventional Commits with scope — `feat(client):`, `fix(cache):`, `cleanup(balance):`, `refactor:`, `chore:`. For breaking wire/cache changes, reference the SHA that introduced the break in the version-bump commit body.
+- **Cross-SDK parity**: this SDK is one of a polyglot family (TS / Rust / Go / Python). Many features ship across all four — check whether a change should be mirrored, and call it out in the commit message when it is.
+- **CI**: GitHub Actions matrix on Node 18/20/22 runs `tsc --noEmit` + unit + integration. Live tests are manual.
 
 ## Dependencies
 
