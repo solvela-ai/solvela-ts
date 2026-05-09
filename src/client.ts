@@ -27,13 +27,18 @@ import {
 import { SOLANA_NETWORK, USDC_MINT } from './constants.js';
 
 /**
- * Parse a gateway-supplied atomic-amount string into a positive finite number.
- * Throws SignerError if the value is not a finite positive integer — this
- * prevents NaN/Infinity from silently bypassing the maxPaymentAmount cap.
+ * Parse a gateway-supplied atomic-amount string into a positive safe integer.
+ * Throws SignerError if the value is not a strict decimal integer — this
+ * prevents NaN/Infinity, fractional truncation ("1.99" → 1), trailing-garbage
+ * truncation ("1000abc" → 1000), and >2^53 precision loss from silently
+ * bypassing the maxPaymentAmount cap.
  */
 function parseAtomicAmount(raw: string): number {
-  const n = parseInt(raw, 10);
-  if (!Number.isFinite(n) || n <= 0) {
+  if (typeof raw !== 'string' || !/^\d+$/.test(raw)) {
+    throw new SignerError(`Invalid payment amount: ${String(raw).slice(0, 32)}`);
+  }
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n) || n <= 0) {
     throw new SignerError(`Invalid payment amount: ${String(raw).slice(0, 32)}`);
   }
   return n;

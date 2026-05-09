@@ -113,6 +113,55 @@ describe('Security: parseAtomicAmount NaN guard', () => {
     expect(signer.called).toBe(false);
   });
 
+  it('rejects fractional amount (parseInt would silently truncate)', async () => {
+    // Pre-fix: parseInt("1500000.99", 10) === 1500000, sneaking past the cap
+    // and signing a smaller value than the gateway's literal string would imply.
+    mockFetchOnce(402, pr({ amount: '1500000.99' }));
+
+    const signer = new StubSigner();
+    const client = new SolvelaClient({ signer });
+    await expect(
+      client.chat(new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')])),
+    ).rejects.toThrow(SignerError);
+    expect(signer.called).toBe(false);
+  });
+
+  it('rejects amount with trailing garbage', async () => {
+    // Pre-fix: parseInt("1000000abc", 10) === 1000000.
+    mockFetchOnce(402, pr({ amount: '1000000abc' }));
+
+    const signer = new StubSigner();
+    const client = new SolvelaClient({ signer });
+    await expect(
+      client.chat(new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')])),
+    ).rejects.toThrow(SignerError);
+    expect(signer.called).toBe(false);
+  });
+
+  it('rejects scientific notation', async () => {
+    // Pre-fix: parseInt("1e6", 10) === 1.
+    mockFetchOnce(402, pr({ amount: '1e6' }));
+
+    const signer = new StubSigner();
+    const client = new SolvelaClient({ signer });
+    await expect(
+      client.chat(new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')])),
+    ).rejects.toThrow(SignerError);
+    expect(signer.called).toBe(false);
+  });
+
+  it('rejects amount above Number.MAX_SAFE_INTEGER (precision loss)', async () => {
+    // 2^53 + 1 — Number(...) would round and return an inexact integer.
+    mockFetchOnce(402, pr({ amount: '9007199254740993' }));
+
+    const signer = new StubSigner();
+    const client = new SolvelaClient({ signer });
+    await expect(
+      client.chat(new ChatRequest('gpt-4', [new ChatMessage('user', 'Hi')])),
+    ).rejects.toThrow(SignerError);
+    expect(signer.called).toBe(false);
+  });
+
   it('enforces default maxPaymentAmount cap (10 USDC atomic)', async () => {
     // 11 USDC > 10 USDC default cap
     mockFetchOnce(402, pr({ amount: '11000000' }));
