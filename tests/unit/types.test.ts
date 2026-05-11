@@ -223,15 +223,22 @@ describe('PaymentPayload', () => {
   it('toJSON produces snake_case', () => {
     const payload = new PaymentPayload(
       2,
-      'exact',
-      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-      new SolanaPayload('txhash123', '11111111111111111111111111111111'),
+      new Resource('/v1/chat/completions', 'POST'),
+      new PaymentAccept(
+        'exact',
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        '1000000',
+        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        '11111111111111111111111111111111',
+        300,
+      ),
+      new SolanaPayload('txhash123'),
     );
     const json = payload.toJSON();
     expect(json.x402_version).toBe(2);
-    expect(json.scheme).toBe('exact');
-    expect(json.network).toBe('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
-    expect(json.payload.transaction_signature).toBe('txhash123');
-    expect(json.payload.sender).toBe('11111111111111111111111111111111');
+    expect(json.resource.url).toBe('/v1/chat/completions');
+    expect(json.accepted.scheme).toBe('exact');
+    expect(json.accepted.network).toBe('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp');
+    expect(json.payload.transaction).toBe('txhash123');
   });
 });

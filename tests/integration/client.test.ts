@@ -190,9 +190,9 @@ describe('SolvelaClient integration (mocked fetch)', () => {
 
     let signerCalled = false;
     const signer: Signer = {
-      async signPayment(_a, _r, _res, accepted: PaymentAccept) {
+      async signPayment(_a, _r, resource, accepted: PaymentAccept) {
         signerCalled = true;
-        return new PaymentPayload(2, accepted.scheme, accepted.network, new SolanaPayload('tx==', 'sender'));
+        return new PaymentPayload(2, resource, accepted, new SolanaPayload('tx=='));
       },
     };
     const monitor = new BalanceMonitor(async () => 1000000); // exactly equal
@@ -216,8 +216,8 @@ describe('SolvelaClient integration (mocked fetch)', () => {
     }) as unknown as typeof fetch;
 
     const signer: Signer = {
-      async signPayment(_a, _r, _res, accepted: PaymentAccept) {
-        return new PaymentPayload(2, accepted.scheme, accepted.network, new SolanaPayload('tx==', 'sender'));
+      async signPayment(_a, _r, resource, accepted: PaymentAccept) {
+        return new PaymentPayload(2, resource, accepted, new SolanaPayload('tx=='));
       },
     };
     const monitor = new BalanceMonitor(async () => 1000);  // 0.001 USDC, far below 5 USDC required
@@ -308,10 +308,10 @@ describe('SolvelaClient chatStream payment retry (mocked fetch)', () => {
       async signPayment(
         _amount: number,
         _recipient: string,
-        _resource: Resource,
+        resource: Resource,
         accepted: PaymentAccept,
       ): Promise<PaymentPayload> {
-        return new PaymentPayload(2, accepted.scheme, accepted.network, new SolanaPayload('fakeTx==', 'fakeSender'));
+        return new PaymentPayload(2, resource, accepted, new SolanaPayload('fakeTx=='));
       },
     };
   }

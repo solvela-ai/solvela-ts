@@ -24,15 +24,15 @@ class StubSigner implements Signer {
   async signPayment(
     _amount: number,
     _recipient: string,
-    _resource: Resource,
+    resource: Resource,
     accepted: PaymentAccept,
   ): Promise<PaymentPayload> {
     this.called = true;
     return new PaymentPayload(
       2,
-      accepted.scheme,
-      accepted.network,
-      new SolanaPayload('fakeTx==', 'fakeSender'),
+      resource,
+      accepted,
+      new SolanaPayload('fakeTx=='),
     );
   }
 }

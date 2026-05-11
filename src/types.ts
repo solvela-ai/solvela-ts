@@ -415,48 +415,39 @@ export class PaymentRequired {
 }
 
 export class SolanaPayload {
-  constructor(
-    public readonly transactionSignature: string,
-    public readonly sender: string,
-  ) {}
+  constructor(public readonly transaction: string) {}
 
   toJSON(): Record<string, unknown> {
-    return {
-      transaction_signature: this.transactionSignature,
-      sender: this.sender,
-    };
+    return { transaction: this.transaction };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromJSON(data: any): SolanaPayload {
-    return new SolanaPayload(data.transaction_signature, data.sender);
+    return new SolanaPayload(data.transaction);
   }
 }
 
 export class EscrowPayload {
   constructor(
-    public readonly transactionSignature: string,
-    public readonly sender: string,
-    public readonly escrowAccount: string,
+    public readonly depositTx: string,
     public readonly serviceId: string,
+    public readonly agentPubkey: string,
   ) {}
 
   toJSON(): Record<string, unknown> {
     return {
-      transaction_signature: this.transactionSignature,
-      sender: this.sender,
-      escrow_account: this.escrowAccount,
+      deposit_tx: this.depositTx,
       service_id: this.serviceId,
+      agent_pubkey: this.agentPubkey,
     };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromJSON(data: any): EscrowPayload {
     return new EscrowPayload(
-      data.transaction_signature,
-      data.sender,
-      data.escrow_account,
+      data.deposit_tx,
       data.service_id,
+      data.agent_pubkey,
     );
   }
 }
@@ -464,16 +455,16 @@ export class EscrowPayload {
 export class PaymentPayload {
   constructor(
     public readonly x402Version: number,
-    public readonly scheme: string,
-    public readonly network: string,
+    public readonly resource: Resource,
+    public readonly accepted: PaymentAccept,
     public readonly payload: SolanaPayload | EscrowPayload,
   ) {}
 
   toJSON(): Record<string, unknown> {
     return {
       x402_version: this.x402Version,
-      scheme: this.scheme,
-      network: this.network,
+      resource: this.resource.toJSON(),
+      accepted: this.accepted.toJSON(),
       payload: this.payload.toJSON(),
     };
   }
@@ -481,13 +472,16 @@ export class PaymentPayload {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromJSON(data: any): PaymentPayload {
     const payloadData = data.payload;
-    const payload = payloadData.escrow_account
-      ? EscrowPayload.fromJSON(payloadData)
-      : SolanaPayload.fromJSON(payloadData);
+    // Discriminate by presence of "transaction" (mirrors Python's check):
+    // SolanaPayload has only {transaction}, EscrowPayload has {deposit_tx, ...}.
+    const payload =
+      'transaction' in payloadData
+        ? SolanaPayload.fromJSON(payloadData)
+        : EscrowPayload.fromJSON(payloadData);
     return new PaymentPayload(
       data.x402_version,
-      data.scheme,
-      data.network,
+      Resource.fromJSON(data.resource),
+      PaymentAccept.fromJSON(data.accepted),
       payload,
     );
   }

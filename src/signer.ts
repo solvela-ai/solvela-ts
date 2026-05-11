@@ -47,9 +47,9 @@ export class KeypairSigner implements Signer {
 
       return new PaymentPayload(
         X402_VERSION,
-        accepted.scheme,
-        accepted.network,
-        new SolanaPayload(txB64, sender.toBase58()),
+        resource,
+        accepted,
+        new SolanaPayload(txB64),
       );
     } catch (e) {
       if (e instanceof SignerError) throw e;
