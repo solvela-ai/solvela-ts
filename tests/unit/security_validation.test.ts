@@ -346,3 +346,40 @@ describe('Security: PaymentRequired wire-format includes asset', () => {
     expect('escrow_program_id' in json).toBe(false);
   });
 });
+
+describe('Security: Scheme literal validation', () => {
+  const validBase = {
+    network: SOLANA_NETWORK,
+    amount: '1000',
+    asset: USDC_MINT,
+    pay_to: '11111111111111111111111111111111',
+    max_timeout_seconds: 300,
+  };
+
+  it('PaymentAccept.fromJSON rejects unknown scheme', () => {
+    // A gateway-supplied unknown scheme is treated as a protocol upgrade the
+    // SDK has not been taught yet. Failing here prevents downstream code from
+    // silently mis-branching at scheme-matching call sites.
+    expect(() =>
+      PaymentAccept.fromJSON({ ...validBase, scheme: 'free-trial' }),
+    ).toThrow(ClientError);
+  });
+
+  it('PaymentAccept.fromJSON rejects non-string scheme', () => {
+    expect(() => PaymentAccept.fromJSON({ ...validBase, scheme: 42 })).toThrow(
+      ClientError,
+    );
+    expect(() => PaymentAccept.fromJSON({ ...validBase, scheme: null })).toThrow(
+      ClientError,
+    );
+  });
+
+  it('PaymentAccept.fromJSON accepts both known schemes', () => {
+    expect(() =>
+      PaymentAccept.fromJSON({ ...validBase, scheme: 'exact' }),
+    ).not.toThrow();
+    expect(() =>
+      PaymentAccept.fromJSON({ ...validBase, scheme: 'escrow' }),
+    ).not.toThrow();
+  });
+});

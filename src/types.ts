@@ -1,3 +1,5 @@
+import { ClientError } from './errors.js';
+
 // ── Role ──
 
 export type Role = 'system' | 'user' | 'assistant' | 'tool' | 'developer';
@@ -296,6 +298,24 @@ export class ChatChunk {
 
 // ── Payment types ──
 
+/**
+ * Known x402 payment schemes. A gateway response carrying an unknown scheme
+ * indicates either a malformed payload or a protocol upgrade the SDK has
+ * not been taught yet; either way, fail fast at parse time rather than
+ * silently mis-branching at the scheme-matching call site. Mirrors Python's
+ * `Scheme = Literal["exact", "escrow"]` + `_KNOWN_SCHEMES` guard.
+ */
+export type Scheme = 'exact' | 'escrow';
+
+const KNOWN_SCHEMES: ReadonlySet<string> = new Set<Scheme>(['exact', 'escrow']);
+
+function parseScheme(raw: unknown): Scheme {
+  if (typeof raw !== 'string' || !KNOWN_SCHEMES.has(raw)) {
+    throw new ClientError(`Unknown payment scheme: ${JSON.stringify(raw).slice(0, 64)}`);
+  }
+  return raw as Scheme;
+}
+
 export class Resource {
   constructor(
     public readonly url: string,
@@ -317,7 +337,7 @@ export class Resource {
 
 export class PaymentAccept {
   constructor(
-    public readonly scheme: string,
+    public readonly scheme: Scheme,
     public readonly network: string,
     public readonly amount: string,
     public readonly asset: string,
@@ -341,7 +361,7 @@ export class PaymentAccept {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromJSON(data: any): PaymentAccept {
     return new PaymentAccept(
-      data.scheme,
+      parseScheme(data.scheme),
       data.network,
       data.amount,
       data.asset,
