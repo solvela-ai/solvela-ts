@@ -46,16 +46,22 @@ function pr(overrides: Partial<{
   const accepted: Record<string, unknown> = {
     scheme: 'exact',
     network: overrides.network ?? SOLANA_NETWORK,
-    max_amount_required: overrides.amount ?? '1000000',
-    resource: 'https://example.com/v1/chat/completions',
-    description: 'Chat',
-    mime_type: 'application/json',
+    amount: overrides.amount ?? '1000000',
+    asset: overrides.asset ?? USDC_MINT,
     pay_to: overrides.payTo ?? '11111111111111111111111111111111',
+    max_timeout_seconds: 300,
   };
-  if (overrides.asset !== undefined) accepted.asset = overrides.asset;
   return {
     x402_version: 2,
+    resource: { url: '/v1/chat/completions', method: 'POST' },
     accepts: [accepted],
+    cost_breakdown: {
+      provider_cost: '0.0005',
+      platform_fee: '0.000025',
+      total: '0.000525',
+      currency: 'USDC',
+      fee_percent: 5,
+    },
     error: 'Payment required',
   };
 }
@@ -80,7 +86,7 @@ describe('Security: parseAtomicAmount NaN guard', () => {
     globalThis.fetch = originalFetch;
   });
 
-  it('rejects non-numeric maxAmountRequired', async () => {
+  it('rejects non-numeric amount', async () => {
     mockFetchOnce(402, pr({ amount: 'free' }));
 
     const signer = new StubSigner();
@@ -327,17 +333,16 @@ describe('Security: PaymentRequired wire-format includes asset', () => {
     expect(parsed.accepts[0].asset).toBe(USDC_MINT);
   });
 
-  it('PaymentAccept.toJSON omits asset when undefined', () => {
+  it('PaymentAccept.toJSON omits escrow_program_id when undefined', () => {
     const accept = new PaymentAccept(
       'exact',
       SOLANA_NETWORK,
       '1000',
-      'r',
-      'd',
-      'application/json',
+      USDC_MINT,
       '11111111111111111111111111111111',
+      300,
     );
     const json = accept.toJSON();
-    expect('asset' in json).toBe(false);
+    expect('escrow_program_id' in json).toBe(false);
   });
 });

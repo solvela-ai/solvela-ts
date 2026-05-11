@@ -190,33 +190,32 @@ describe('PaymentRequired', () => {
   it('fromJSON parses 402 response', () => {
     const pr = PaymentRequired.fromJSON({
       x402_version: 2,
+      resource: { url: '/v1/chat/completions', method: 'POST' },
       accepts: [
         {
           scheme: 'exact',
           network: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-          max_amount_required: '1000000',
-          resource: 'https://example.com/v1/chat/completions',
-          description: 'Chat completion',
-          mime_type: 'application/json',
+          amount: '1000000',
+          asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
           pay_to: '11111111111111111111111111111111',
-          extra: {},
+          max_timeout_seconds: 300,
         },
       ],
-      error: 'Payment required',
       cost_breakdown: {
-        model_cost_usd: '0.01',
-        platform_fee_usd: '0.0005',
-        total_usd: '0.0105',
-        total_atomic: '10500',
-        input_tokens: 100,
-        estimated_output_tokens: 200,
+        provider_cost: '0.01',
+        platform_fee: '0.0005',
+        total: '0.0105',
+        currency: 'USDC',
+        fee_percent: 5,
       },
+      error: 'Payment required',
     });
     expect(pr.x402Version).toBe(2);
+    expect(pr.resource.url).toBe('/v1/chat/completions');
     expect(pr.accepts).toHaveLength(1);
     expect(pr.accepts[0].scheme).toBe('exact');
-    expect(pr.accepts[0].maxAmountRequired).toBe('1000000');
-    expect(pr.costBreakdown?.totalUsd).toBe('0.0105');
+    expect(pr.accepts[0].amount).toBe('1000000');
+    expect(pr.costBreakdown.total).toBe('0.0105');
   });
 });
 

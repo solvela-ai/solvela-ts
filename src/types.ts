@@ -299,21 +299,19 @@ export class ChatChunk {
 export class Resource {
   constructor(
     public readonly url: string,
-    public readonly mimeType: string,
-    public readonly description: string,
+    public readonly method: string,
   ) {}
 
   toJSON(): Record<string, unknown> {
     return {
       url: this.url,
-      mime_type: this.mimeType,
-      description: this.description,
+      method: this.method,
     };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromJSON(data: any): Resource {
-    return new Resource(data.url, data.mime_type, data.description);
+    return new Resource(data.url, data.method);
   }
 }
 
@@ -321,26 +319,22 @@ export class PaymentAccept {
   constructor(
     public readonly scheme: string,
     public readonly network: string,
-    public readonly maxAmountRequired: string,
-    public readonly resource: string,
-    public readonly description: string,
-    public readonly mimeType: string,
+    public readonly amount: string,
+    public readonly asset: string,
     public readonly payTo: string,
-    public readonly extra: Record<string, unknown> = {},
-    public readonly asset?: string,
+    public readonly maxTimeoutSeconds: number,
+    public readonly escrowProgramId?: string,
   ) {}
 
   toJSON(): Record<string, unknown> {
     return omitUndefined({
       scheme: this.scheme,
       network: this.network,
-      max_amount_required: this.maxAmountRequired,
-      resource: this.resource,
-      description: this.description,
-      mime_type: this.mimeType,
-      pay_to: this.payTo,
-      extra: this.extra,
+      amount: this.amount,
       asset: this.asset,
+      pay_to: this.payTo,
+      max_timeout_seconds: this.maxTimeoutSeconds,
+      escrow_program_id: this.escrowProgramId,
     });
   }
 
@@ -349,47 +343,42 @@ export class PaymentAccept {
     return new PaymentAccept(
       data.scheme,
       data.network,
-      data.max_amount_required,
-      data.resource,
-      data.description,
-      data.mime_type,
-      data.pay_to,
-      data.extra ?? {},
+      data.amount,
       data.asset,
+      data.pay_to,
+      data.max_timeout_seconds,
+      data.escrow_program_id,
     );
   }
 }
 
 export class CostBreakdown {
   constructor(
-    public readonly modelCostUsd: string,
-    public readonly platformFeeUsd: string,
-    public readonly totalUsd: string,
-    public readonly totalAtomic: string,
-    public readonly inputTokens: number,
-    public readonly estimatedOutputTokens: number,
+    public readonly providerCost: string,
+    public readonly platformFee: string,
+    public readonly total: string,
+    public readonly currency: string,
+    public readonly feePercent: number,
   ) {}
 
   toJSON(): Record<string, unknown> {
     return {
-      model_cost_usd: this.modelCostUsd,
-      platform_fee_usd: this.platformFeeUsd,
-      total_usd: this.totalUsd,
-      total_atomic: this.totalAtomic,
-      input_tokens: this.inputTokens,
-      estimated_output_tokens: this.estimatedOutputTokens,
+      provider_cost: this.providerCost,
+      platform_fee: this.platformFee,
+      total: this.total,
+      currency: this.currency,
+      fee_percent: this.feePercent,
     };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromJSON(data: any): CostBreakdown {
     return new CostBreakdown(
-      data.model_cost_usd,
-      data.platform_fee_usd,
-      data.total_usd,
-      data.total_atomic,
-      data.input_tokens,
-      data.estimated_output_tokens,
+      data.provider_cost,
+      data.platform_fee,
+      data.total,
+      data.currency,
+      data.fee_percent,
     );
   }
 }
@@ -397,27 +386,30 @@ export class CostBreakdown {
 export class PaymentRequired {
   constructor(
     public readonly x402Version: number,
+    public readonly resource: Resource,
     public readonly accepts: PaymentAccept[],
+    public readonly costBreakdown: CostBreakdown,
     public readonly error: string,
-    public readonly costBreakdown?: CostBreakdown,
   ) {}
 
   toJSON(): Record<string, unknown> {
-    return omitUndefined({
+    return {
       x402_version: this.x402Version,
+      resource: this.resource.toJSON(),
       accepts: this.accepts.map((a) => a.toJSON()),
+      cost_breakdown: this.costBreakdown.toJSON(),
       error: this.error,
-      cost_breakdown: this.costBreakdown?.toJSON(),
-    });
+    };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromJSON(data: any): PaymentRequired {
     return new PaymentRequired(
       data.x402_version,
+      Resource.fromJSON(data.resource),
       (data.accepts ?? []).map((a: unknown) => PaymentAccept.fromJSON(a)),
+      CostBreakdown.fromJSON(data.cost_breakdown),
       data.error,
-      data.cost_breakdown ? CostBreakdown.fromJSON(data.cost_breakdown) : undefined,
     );
   }
 }

@@ -35,7 +35,8 @@
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "smoke": "tsc -p scripts && node scripts/dist/scripts/smoke.js"
   },
   "engines": { "node": ">=20.19" },
   "license": "MIT",

@@ -40,17 +40,24 @@ describe('SolvelaClient integration (mocked fetch)', () => {
 
   const prBody = {
     x402_version: 2,
+    resource: { url: '/v1/chat/completions', method: 'POST' },
     accepts: [
       {
         scheme: 'exact',
         network: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-        max_amount_required: '1000000',
-        resource: 'https://example.com/v1/chat/completions',
-        description: 'Chat',
-        mime_type: 'application/json',
+        amount: '1000000',
+        asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         pay_to: '11111111111111111111111111111111',
+        max_timeout_seconds: 300,
       },
     ],
+    cost_breakdown: {
+      provider_cost: '0.005',
+      platform_fee: '0.00025',
+      total: '0.00525',
+      currency: 'USDC',
+      fee_percent: 5,
+    },
     error: 'Payment required',
   };
 
@@ -168,7 +175,7 @@ describe('SolvelaClient integration (mocked fetch)', () => {
       if (call === 1) {
         return Promise.resolve({
           status: 402,
-          json: async () => prBody, // max_amount_required: '1000000'
+          json: async () => prBody, // amount: '1000000'
           body: null,
           statusText: 'Payment Required',
         });
@@ -200,7 +207,7 @@ describe('SolvelaClient integration (mocked fetch)', () => {
   it('chat surfaces InsufficientBalanceError when monitor balance < required', async () => {
     const prBodyHigh = {
       ...prBody,
-      accepts: [{ ...prBody.accepts[0], max_amount_required: '5000000' }],
+      accepts: [{ ...prBody.accepts[0], amount: '5000000' }],
     };
     globalThis.fetch = vi.fn().mockResolvedValue({
       status: 402,
@@ -262,17 +269,24 @@ describe('SolvelaClient chatStream payment retry (mocked fetch)', () => {
 
   const prBody = {
     x402_version: 2,
+    resource: { url: '/v1/chat/completions', method: 'POST' },
     accepts: [
       {
         scheme: 'exact',
         network: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-        max_amount_required: '1000000',
-        resource: 'https://example.com/v1/chat/completions',
-        description: 'Chat',
-        mime_type: 'application/json',
+        amount: '1000000',
+        asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         pay_to: '11111111111111111111111111111111',
+        max_timeout_seconds: 300,
       },
     ],
+    cost_breakdown: {
+      provider_cost: '0.005',
+      platform_fee: '0.00025',
+      total: '0.00525',
+      currency: 'USDC',
+      fee_percent: 5,
+    },
     error: 'Payment required',
   };
 

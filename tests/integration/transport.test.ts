@@ -47,17 +47,24 @@ describe('Transport integration (mocked fetch)', () => {
   it('sendChat returns PaymentRequired on 402', async () => {
     const prBody = {
       x402_version: 2,
+      resource: { url: '/v1/chat/completions', method: 'POST' },
       accepts: [
         {
           scheme: 'exact',
           network: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
-          max_amount_required: '1000000',
-          resource: 'https://example.com/v1/chat/completions',
-          description: 'Chat',
-          mime_type: 'application/json',
+          amount: '1000000',
+          asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
           pay_to: '11111111111111111111111111111111',
+          max_timeout_seconds: 300,
         },
       ],
+      cost_breakdown: {
+        provider_cost: '0.005',
+        platform_fee: '0.00025',
+        total: '0.00525',
+        currency: 'USDC',
+        fee_percent: 5,
+      },
       error: 'Payment required',
     };
     mockFetch(402, prBody);

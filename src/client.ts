@@ -14,7 +14,6 @@ import {
   ModelInfo,
   PaymentRequired,
   PaymentAccept,
-  Resource,
 } from './types.js';
 import {
   ClientError,
@@ -328,16 +327,10 @@ export class SolvelaClient {
       throw new InsufficientBalanceError(this.lastBalance, amountAtomic);
     }
 
-    const resource = new Resource(
-      accepted.resource,
-      accepted.mimeType,
-      accepted.description,
-    );
-
     const payload = await this.signer!.signPayment(
       amountAtomic,
       accepted.payTo,
-      resource,
+      pr.resource,
       accepted,
     );
 
@@ -381,7 +374,7 @@ export class SolvelaClient {
       throw new RecipientMismatchError(this.config.expectedRecipient, accepted.payTo);
     }
 
-    const amount = parseAtomicAmount(accepted.maxAmountRequired);
+    const amount = parseAtomicAmount(accepted.amount);
     if (this.config.maxPaymentAmount && amount > this.config.maxPaymentAmount) {
       throw new AmountExceedsMaxError(amount, this.config.maxPaymentAmount);
     }

@@ -11,7 +11,7 @@ import {
   AmountExceedsMaxError,
   TimeoutError,
 } from '../../src/errors.js';
-import { PaymentRequired, PaymentAccept } from '../../src/types.js';
+import { PaymentRequired, PaymentAccept, Resource, CostBreakdown } from '../../src/types.js';
 
 describe('ClientError', () => {
   it('is an instance of Error', () => {
@@ -61,7 +61,13 @@ describe('GatewayError', () => {
 
 describe('PaymentRequiredError', () => {
   it('holds PaymentRequired data', () => {
-    const pr = new PaymentRequired(2, [], 'Payment required');
+    const pr = new PaymentRequired(
+      2,
+      new Resource('/v1/chat/completions', 'POST'),
+      [],
+      new CostBreakdown('0', '0', '0', 'USDC', 5),
+      'Payment required',
+    );
     const err = new PaymentRequiredError(pr);
     expect(err).toBeInstanceOf(ClientError);
     expect(err.paymentRequired.x402Version).toBe(2);

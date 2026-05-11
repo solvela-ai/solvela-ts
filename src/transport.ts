@@ -11,6 +11,30 @@ function sanitizeErrorMessage(s: string): string {
   return String(s).replace(/[\r\n\x00-\x1f]/g, ' ').slice(0, 200);
 }
 
+/**
+ * Unwrap the gateway's 402 envelope around a PaymentRequired payload.
+ *
+ * The gateway wraps 402 bodies in an OpenAI-style error envelope:
+ *   {"error": {"message": "<stringified PaymentRequired JSON>",
+ *              "type": "invalid_payment"}}
+ *
+ * Returns the inner parsed payload when the envelope is present; otherwise
+ * returns the body untouched so the caller's PaymentRequired.fromJSON
+ * surfaces a clear error if the wire shape changes upstream.
+ */
+function unwrapPaymentRequiredEnvelope(body: unknown): unknown {
+  if (typeof body !== 'object' || body === null) return body;
+  const outer = body as { error?: unknown };
+  if (typeof outer.error !== 'object' || outer.error === null) return body;
+  const inner = outer.error as { message?: unknown };
+  if (typeof inner.message !== 'string') return body;
+  try {
+    return JSON.parse(inner.message);
+  } catch {
+    return body;
+  }
+}
+
 export class Transport {
   constructor(
     private readonly baseUrl: string,
@@ -56,7 +80,7 @@ export class Transport {
       if (resp.status === 200) {
         return ChatResponse.fromJSON(await resp.json());
       } else if (resp.status === 402) {
-        return PaymentRequired.fromJSON(await resp.json());
+        return PaymentRequired.fromJSON(unwrapPaymentRequiredEnvelope(await resp.json()));
       } else {
         const data = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
         throw new GatewayError(
@@ -101,7 +125,7 @@ export class Transport {
     clearTimeout(timeoutId);
 
     if (resp.status === 402) {
-      const pr = PaymentRequired.fromJSON(await resp.json());
+      const pr = PaymentRequired.fromJSON(unwrapPaymentRequiredEnvelope(await resp.json()));
       throw new PaymentRequiredError(pr);
     }
     if (resp.status !== 200) {
