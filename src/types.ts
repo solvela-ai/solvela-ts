@@ -509,51 +509,70 @@ export class PaymentPayload {
 
 // ── ModelInfo ──
 
+/**
+ * Model metadata from the gateway's `GET /v1/models` registry.
+ *
+ * Mirrors Python's ModelInfo dataclass: the wire format nests capabilities
+ * under `capabilities: {...}` and pricing under `pricing: {...}`, but the
+ * class flattens them so internal code stays terse. Pricing values are
+ * USDC per million tokens as floats (e.g. 0.28 for DeepSeek's input rate),
+ * NOT atomic units — convert at the boundary if needed.
+ */
 export class ModelInfo {
   constructor(
     public readonly id: string,
     public readonly provider: string,
     public readonly displayName: string,
-    public readonly inputPricePerToken: number,
-    public readonly outputPricePerToken: number,
-    public readonly maxInputTokens: number,
-    public readonly maxOutputTokens: number,
-    public readonly supportsStreaming: boolean = true,
+    public readonly contextWindow: number,
+    public readonly supportsStreaming: boolean = false,
     public readonly supportsTools: boolean = false,
     public readonly supportsVision: boolean = false,
-    public readonly aliases: string[] = [],
+    public readonly reasoning: boolean = false,
+    public readonly inputUsdcPerMillion: number = 0,
+    public readonly outputUsdcPerMillion: number = 0,
+    public readonly currency: string = 'USDC',
+    public readonly feePercent: number = 5,
   ) {}
 
   toJSON(): Record<string, unknown> {
     return {
       id: this.id,
+      object: 'model',
       provider: this.provider,
       display_name: this.displayName,
-      input_price_per_token: this.inputPricePerToken,
-      output_price_per_token: this.outputPricePerToken,
-      max_input_tokens: this.maxInputTokens,
-      max_output_tokens: this.maxOutputTokens,
-      supports_streaming: this.supportsStreaming,
-      supports_tools: this.supportsTools,
-      supports_vision: this.supportsVision,
-      aliases: this.aliases,
+      context_window: this.contextWindow,
+      capabilities: {
+        streaming: this.supportsStreaming,
+        tools: this.supportsTools,
+        vision: this.supportsVision,
+        reasoning: this.reasoning,
+      },
+      pricing: {
+        input_per_million: this.inputUsdcPerMillion,
+        output_per_million: this.outputUsdcPerMillion,
+        currency: this.currency,
+        fee_percent: this.feePercent,
+      },
     };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static fromJSON(data: any): ModelInfo {
+    const caps = data.capabilities ?? {};
+    const pricing = data.pricing ?? {};
     return new ModelInfo(
       data.id,
       data.provider,
       data.display_name,
-      data.input_price_per_token,
-      data.output_price_per_token,
-      data.max_input_tokens,
-      data.max_output_tokens,
-      data.supports_streaming ?? true,
-      data.supports_tools ?? false,
-      data.supports_vision ?? false,
-      data.aliases ?? [],
+      Number(data.context_window),
+      Boolean(caps.streaming),
+      Boolean(caps.tools),
+      Boolean(caps.vision),
+      Boolean(caps.reasoning),
+      Number(pricing.input_per_million ?? 0),
+      Number(pricing.output_per_million ?? 0),
+      pricing.currency ?? 'USDC',
+      Number(pricing.fee_percent ?? 5),
     );
   }
 }

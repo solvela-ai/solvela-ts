@@ -51,7 +51,27 @@ async function main(): Promise<number> {
     return 1;
   }
   const sampleModel = models[0];
-  console.log(`  sample model       -> id=${JSON.stringify(sampleModel.id)}`);
+  console.log(
+    `  sample model       -> id=${JSON.stringify(sampleModel.id)} ctx=${sampleModel.contextWindow} in=${sampleModel.inputUsdcPerMillion}/M out=${sampleModel.outputUsdcPerMillion}/M`,
+  );
+
+  // Guard against silent ModelInfo wire drift: every prior shape change
+  // surfaced as all-zero pricing / all-false capabilities. Assert at least
+  // one model in the registry exposes streaming and paid input pricing.
+  const anyStreaming = models.some((m) => m.supportsStreaming);
+  const anyPriced = models.some((m) => m.inputUsdcPerMillion > 0);
+  if (!anyStreaming) {
+    console.log('FAIL: no model reports supportsStreaming=true — capabilities parsing may be drifted');
+    return 1;
+  }
+  if (!anyPriced) {
+    console.log('FAIL: no model reports inputUsdcPerMillion > 0 — pricing parsing may be drifted');
+    return 1;
+  }
+  if (!sampleModel.displayName || !sampleModel.provider) {
+    console.log('FAIL: sample model missing displayName or provider');
+    return 1;
+  }
 
   // 2. Unsigned chat returns 402 with a parseable PaymentRequired body.
   const req = new ChatRequest(sampleModel.id, [new ChatMessage('user', 'ping')]);
