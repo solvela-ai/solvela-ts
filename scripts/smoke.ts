@@ -20,6 +20,12 @@
 import { SolvelaClient } from '../src/index.js';
 import { ChatMessage, ChatRequest, type ModelInfo } from '../src/index.js';
 import { ClientError, PaymentRequiredError } from '../src/index.js';
+import { SOLANA_NETWORK, USDC_MINT, X402_VERSION } from '../src/index.js';
+
+// Solana base58 pubkeys: 32–44 chars over the Bitcoin base58 alphabet
+// (no 0/O/I/l). An empty or malformed pay_to would route signed funds to
+// address-zero — the most expensive class of silent drift.
+const SOLANA_PUBKEY_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 async function main(): Promise<number> {
   const gatewayUrl = process.env.SOLVELA_GATEWAY_URL ?? 'http://localhost:8402';
@@ -90,6 +96,38 @@ async function main(): Promise<number> {
         console.log('FAIL: 402 response had empty accepts array');
         return 1;
       }
+
+      // Critical drift checks — a silent regression in any of these would
+      // route real funds wrong. All six are derivable from the unsigned 402
+      // we just received, so no extra gateway round-trip is required.
+      const accept = pr.accepts[0];
+
+      if (!accept.payTo || !SOLANA_PUBKEY_RE.test(accept.payTo)) {
+        console.log(`FAIL: accepts[0].payTo invalid: ${JSON.stringify(accept.payTo).slice(0, 64)}`);
+        return 1;
+      }
+      if (!/^\d+$/.test(accept.amount) || Number(accept.amount) <= 0) {
+        console.log(`FAIL: accepts[0].amount must be a positive decimal-integer string: ${JSON.stringify(accept.amount).slice(0, 32)}`);
+        return 1;
+      }
+      if (accept.network !== SOLANA_NETWORK) {
+        console.log(`FAIL: accepts[0].network=${JSON.stringify(accept.network)} (expected ${SOLANA_NETWORK})`);
+        return 1;
+      }
+      if (accept.asset !== USDC_MINT) {
+        console.log(`FAIL: accepts[0].asset=${JSON.stringify(accept.asset)} (expected ${USDC_MINT})`);
+        return 1;
+      }
+      if (pr.costBreakdown.currency !== 'USDC') {
+        console.log(`FAIL: cost_breakdown.currency=${JSON.stringify(pr.costBreakdown.currency)} (expected "USDC")`);
+        return 1;
+      }
+      if (pr.x402Version !== X402_VERSION) {
+        console.log(`FAIL: x402_version=${pr.x402Version} (SDK expects ${X402_VERSION})`);
+        return 1;
+      }
+      console.log(`  critical checks    -> payTo ✓ amount ✓ network ✓ asset ✓ currency ✓ x402_version=${X402_VERSION} ✓`);
+
       console.log('\nSmoke test PASSED');
       return 0;
     }
